@@ -1,0 +1,149 @@
+---
+title: "WineProject_C_KeerthiChereddy"
+author: "KC"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include = FALSE}
+### Installing packages
+library(ggplot2)
+library(dplyr)
+library(readxl)
+install.packages("permute")
+library(permute)
+```
+
+```{r, include = FALSE}
+### Setting Directory
+
+df<- read.table(file="data/wine+quality/winequality-red.csv",sep=';',header =T)
+attach(df)
+dim(df)
+sum(is.na("df"))
+```
+
+
+```{r}
+summary_rs <- summary(df$'residual sugar')
+summary_rs
+
+median_rs <- median(df$'residual sugar')
+median_rs
+```
+
+```{r}
+df <- df %>%
+  mutate(group = ifelse(df$residual_sugar <= median_rs, "A", "B"))
+  df$group
+```
+
+
+# Create two groups, A and B, based on the median of 'residual.sugar'
+
+
+#### 1a. Null Hypothesis: There is no difference between population mean of the density of the groups A and B
+
+#### 1b. Use visualization tools to inspect the hypothesis. Do you think the hypothesis is right or not?
+
+boxplot(density ~ group, data = red_wine)
+
+##### Deducing from the box plots, there is a difference between population means of the two groups A and B
+
+#### 1c. What test are you going to use?
+##### As the comparision is between two groups, two-sample t-test is used
+
+t_density <- t.test(density ~ group, data = red_wine)
+t_density
+
+#### 1d. What is the p-value?
+##### The p.value of t_test_result is 2.2e-16
+
+
+#### 1e. What is your conclusion?
+
+##### As the p.value of t_test_result is 2.2e-16 which is less than 0.05, we reject the null hypothesis that there is no difference between population mean of the density of the groups A and B.
+
+#### 1f. Does your conclusion imply that there is an association between “density” and “residual.sugar”?
+
+##### No, the conclusion of the t-test only suggests whether there is a statistical difference in the means of "density" between the two groups and does not imply any association. It. To understand the relationship regression analysis need to be conducted.
+
+#### 2. Produce summary statistics of “residual.sugar” and use its 1st, 2nd, and 3rd quantiles to divide the data into four groups A, B, C, and D. We want to test if “density” in the four groups has the same population mean.
+
+#### 2a. Null hypothesis - There is no difference between the population mean of "density" for group A and the groups B,C and D.
+
+quantiles <- quantile(red_wine$`residual sugar`, probs = c(0, 0.25, 0.5, 0.75, 1))
+quantiles
+
+red_wine <- red_wine %>%
+  mutate(group_1 = cut(`residual sugar`, breaks = quantiles, labels = c("1", "2", "3", "4"), include.lowest = TRUE))
+  
+#### 2b. Use visualization tools to inspect the hypothesis. Do you think the hypothesis is right or not?
+
+ggplot(red_wine, aes(x = group_1, y = density)) +
+  geom_boxplot()
+
+##### Deducing from the box plots, there is a difference between population means of each of the groups A,B,Cand D
+
+#### c. What test are you going to use?
+
+anova_result <- aov(density ~ group_1, data = red_wine)
+summary(anova_result)
+
+##### As there are multiple groups for comparision, ANOVA test is used for analysis
+
+#### 2d. What is the p-value?
+
+##### The p value is 2e-16
+
+#### 2e. What is your conclusion?
+
+##### As the p.value of the ANOVA is 2e-16 which is less than 0.05, we reject the null hypothesis that there is no difference between population mean of the density of the groups A, B, C and D.
+
+#### 2f. Does your conclusion imply that there is an association between “density” and “residual.sugar”? Compare your result here with that in Question 1. Do you think increasing the number of groups help identify the association? Would you consider dividing the data into 10 groups so as to help the discovery of the association? Why?
+
+##### As the null hypothesis is rejected, it suggests an association. Increasing the number of groups may help identify finer patterns in the data. However, over-segmenting the data leads to smaller sample sizes in each group and less statistical power.
+
+#### 3. Create a 2 by 4 contingency table using the categories A, B, C, D of “residual.sugar” and the binary variable “excellent” you created in Part B. Note that you have two factors: the categorical levels of “residual.sugar” (A, B, C and D) and an indicator of excellent wines (yes or no).
+
+##### Null Hypothesis - There is no correlation between residual sugar and excellency of the wine
+
+red_wine <- red_wine %>%
+  mutate(excellent = ifelse(quality >= 7,1,0))
+
+contingency_table <- table(red_wine$excellent, red_wine$group_1)
+
+#### 3a. Use the Chi-square test to test if these two factors are correlated or not;
+
+chi_sq_result <- chisq.test(contingency_table)
+chi_sq_result
+
+##### As the p-value of Chi-squared test is 0.1386, null-hypothesis hold true i.e. there is no correlation between residual sugar and excellency of wines
+
+#### 3b. Use the permutation test to do the same and compare the result to that in (a);
+
+observed_chi_sq <- chisq.test(contingency_table)$statistic
+num_perm <- 1000
+
+permuted_chi_sq_stats <- numeric(num_perm)
+
+for (i in 1:num_perm) {
+  shuffle_excellent <- sample(red_wine$excellent)
+  shuffle_contingency_table <- table(shuffle_excellent, red_wine$group_1)
+  
+  permuted_chi_sq_stats[i] <- chisq.test(shuffle_contingency_table)$statistic
+}
+
+p_value <- mean(permuted_chi_sq_stats >= observed_chi_sq)
+
+# Display results
+observed_chi_sq
+p_value
+
+#### 3c. Can you conclude that “residual.sugar” is a significant factor contributing to the excellence of wine? Why?
+
+##### The p-value obtained from permutation is 0.134 (> 0.05). The p-values of both chi-squared test and permutation test are greater than 0.05, indicating that the null-hypothesis hold true i.e. there is no correlation between residual sugar and excellency of wines
