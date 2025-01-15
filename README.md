@@ -6,8 +6,13 @@ Analysis which particular attribute effect the wine quality significantly and ho
 
 # Analysis
 I have analysed each of the variables using various Stastical techniques to answer the following questions:
+
 a. What is the sample size?
+
 b. Any outliers? Is there any concerns about the data quality?
+
 c. How can I summarize the data of each variable in a concise way? What statistics should be presented?
+
 d. How can I visualize the distribution of each variable?
+
 e. Do I see any skewed distributions?
